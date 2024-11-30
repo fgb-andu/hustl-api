@@ -57,7 +57,7 @@ func (h *Handler) Router() chi.Router {
 	// Routes
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth endpoint
-		r.Post("/guest", h.HandleAuth)
+		r.Post("/guest", h.HandleGuestAuth)
 		r.Post("/auth", h.HandleAuth)
 
 		// Existing endpoints
@@ -159,31 +159,6 @@ func (h *Handler) HandleGuestAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Handle authenticated session (Apple/Google)
-	if req.Provider != nil {
-		if req.Username == nil || *req.Username == "" {
-			respondWithError(w, http.StatusBadRequest, "email is required for authenticated sessions")
-			return
-		}
-
-		// Look up user by email
-		user, err := h.userProv.GetUserByUsername(*req.Username)
-		if err == nil {
-			// User exists, return it
-			respondWithJSON(w, http.StatusOK, AuthResponse{User: user})
-			return
-		}
-
-		// Create new authenticated user
-		user, err = h.userProv.CreateUser(*req.Provider, *req.Username, *req.Email)
-		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Failed to create user")
-			return
-		}
-		respondWithJSON(w, http.StatusCreated, AuthResponse{User: user})
-		return
-	}
-
 	// Handle anonymous session
 	user, err := h.userProv.GetUserByUsername(req.DeviceID)
 	if err == nil {
@@ -198,7 +173,7 @@ func (h *Handler) HandleGuestAuth(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Failed to create user")
 		return
 	}
-	respondWithJSON(w, http.StatusCreated, AuthResponse{User: user})
+	respondWithJSON(w, http.StatusCreated, user)
 }
 
 func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
