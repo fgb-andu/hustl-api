@@ -141,6 +141,7 @@ func respondWithError(w http.ResponseWriter, code int, message string) {
 
 type AuthRequest struct {
 	Provider *domain.AuthProvider `json:"provider,omitempty"` // Optional: google/apple
+	Username *string              `json:"username,omitempty"` // Required for google/apple
 	Email    *string              `json:"email,omitempty"`    // Required for google/apple
 	DeviceID string               `json:"device_id"`          // Required for all requests
 }
@@ -160,13 +161,13 @@ func (h *Handler) HandleGuestAuth(w http.ResponseWriter, r *http.Request) {
 
 	// Handle authenticated session (Apple/Google)
 	if req.Provider != nil {
-		if req.Email == nil || *req.Email == "" {
+		if req.Username == nil || *req.Username == "" {
 			respondWithError(w, http.StatusBadRequest, "email is required for authenticated sessions")
 			return
 		}
 
 		// Look up user by email
-		user, err := h.userProv.GetUserByUsername(*req.Email)
+		user, err := h.userProv.GetUserByUsername(*req.Username)
 		if err == nil {
 			// User exists, return it
 			respondWithJSON(w, http.StatusOK, AuthResponse{User: user})
@@ -174,7 +175,7 @@ func (h *Handler) HandleGuestAuth(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Create new authenticated user
-		user, err = h.userProv.CreateUser(*req.Provider, *req.Email)
+		user, err = h.userProv.CreateUser(*req.Provider, *req.Username, *req.Email)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Failed to create user")
 			return
@@ -192,7 +193,7 @@ func (h *Handler) HandleGuestAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create new anonymous user
-	user, err = h.userProv.CreateUser(domain.AuthProviderGuest, req.DeviceID)
+	user, err = h.userProv.CreateUser(domain.AuthProviderGuest, req.DeviceID, "")
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to create user")
 		return
@@ -284,7 +285,7 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Create new authenticated user
-		user, err = h.userProv.CreateUser(*req.Provider, *req.Email)
+		user, err = h.userProv.CreateUser(*req.Provider, *req.Username, *req.Email)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Failed to create user")
 			return
@@ -302,7 +303,7 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create new anonymous user
-	user, err = h.userProv.CreateUser(domain.AuthProviderGuest, req.DeviceID)
+	user, err = h.userProv.CreateUser(domain.AuthProviderGuest, *req.Username, *req.Email)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to create user")
 		return

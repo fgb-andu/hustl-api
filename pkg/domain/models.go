@@ -46,6 +46,7 @@ type User struct {
 	ID           string       `json:"id" db:"id"`
 	AuthProvider AuthProvider `json:"auth_provider" db:"auth_provider"`
 	Username     string       `json:"username" db:"username"`
+	Email        string       `json:"email" db:"email"`
 	CreatedAt    time.Time    `json:"created_at" db:"created_at"`
 	LastActive   time.Time    `json:"last_active" db:"last_active"`
 	Entitlements Entitlements `json:"entitlements" db:"entitlements"`

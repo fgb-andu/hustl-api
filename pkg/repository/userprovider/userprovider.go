@@ -24,13 +24,13 @@ func NewUserProvider() *UserProvider {
 		usersByUsername: make(map[string]*domain.User),
 	}
 }
-func (p *UserProvider) CreateUser(authProvider domain.AuthProvider, username string) (*domain.User, error) {
+func (p *UserProvider) CreateUser(authProvider domain.AuthProvider, username string, email string) (*domain.User, error) {
 	log.Println("Creating User in user provider.")
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
 	}
-	user := domain.User{ID: id.String(), AuthProvider: authProvider, Username: username, Entitlements: domain.Entitlements{
+	user := domain.User{ID: id.String(), AuthProvider: authProvider, Username: username, Email: email, Entitlements: domain.Entitlements{
 		DailyMessageLimit: FREE_USER_MESSAGE_LIMIT,
 		MessagesUsed:      0,
 		LastReset:         time.Now(),
