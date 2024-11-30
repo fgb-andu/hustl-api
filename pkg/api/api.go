@@ -104,7 +104,7 @@ func (h *Handler) HandleNextMessage(w http.ResponseWriter, r *http.Request) {
 	if err := h.userProv.CheckAndIncrementMessageCount(req.UserID); err != nil {
 		switch err {
 		case userprovider.ErrUserNotFound:
-			respondWithError(w, http.StatusInternalServerError, "User not found")
+			respondWithError(w, http.StatusNotFound, "User not found")
 		case userprovider.ErrDailyLimitReached:
 			respondWithError(w, http.StatusForbidden, "Daily message limit reached")
 		default:

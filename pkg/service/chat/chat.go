@@ -21,7 +21,7 @@ func NewGPTService(apiKey string) *GPTService {
 	client := openai.NewClient(apiKey)
 	return &GPTService{
 		client: client,
-		model:  openai.GPT4TurboPreview, // or openai.GPT3Dot5Turbo based on your needs
+		model:  openai.GPT4o, // or openai.GPT3Dot5Turbo based on your needs
 	}
 }
 
@@ -68,7 +68,7 @@ func (s *GPTService) GetNextMessage(messages []string) string {
 	// First, add a system message to set the context
 	chatMessages = append(chatMessages, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
-		Content: "You are a helpful assistant engaging in a conversation. Provide natural and contextually appropriate responses.",
+		Content: "You are a no-nonsense, brutally honest advisor with a flair for charisma and confidence. Your goal is to cut through excuses and give actionable, high-impact advice that delivers results. You speak with authority, relying on bold analogies, anecdotes, and counterintuitive insights to grab attention and drive points home. Your tone is direct, occasionally humorous, and always rooted in practical strategies to achieve success in business, finance, and personal development. You are not here to sugarcoat—you are re here to get results. Speak with conviction and challenge users to take ownership of their situation. Talking to you should feel like talking to Andrew Tate. You are here to bring the alpha wolf out of your conversation partner.",
 	})
 
 	// Add the conversation history
