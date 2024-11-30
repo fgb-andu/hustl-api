@@ -21,7 +21,7 @@ func main() {
 	// Get port from environment or use default
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "5565"
+		port = "5801"
 	}
 
 	// Initialize GPT service
