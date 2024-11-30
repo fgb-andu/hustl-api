@@ -65,7 +65,7 @@ func runMigrations(db *sql.DB, migrationsPath string) error {
 
 // Rest of the UserProvider implementation remains the same...
 func (p *UserProvider) CreateUser(authProvider domain.AuthProvider, username string, email string) (*domain.User, error) {
-	log.Println("Creating User in user provider.")
+	log.Println("Creating user with username: " + username)
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -98,7 +98,7 @@ func (p *UserProvider) CreateUser(authProvider domain.AuthProvider, username str
 }
 
 func (p *UserProvider) GetUser(id string) (*domain.User, error) {
-	log.Println("Getting User from user provider.")
+	log.Println("Getting user by ID: " + id)
 
 	var user domain.User
 	var lastReset time.Time
@@ -143,7 +143,7 @@ func (p *UserProvider) GetUser(id string) (*domain.User, error) {
 }
 
 func (p *UserProvider) GetUserByUsername(username string) (*domain.User, error) {
-	log.Println("Getting User by Username from user provider.")
+	log.Println("Getting User by username: " + username)
 
 	var user domain.User
 	var lastReset time.Time
