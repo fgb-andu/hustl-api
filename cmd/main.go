@@ -25,10 +25,17 @@ func main() {
 
 	// Initialize GPT service
 	service := chat.NewGPTService(apiKey)
-	userProvider := userprovider.NewUserProvider()
 
+	provider, err := userprovider.NewUserProvider(userprovider.Config{
+		DatabasePath:   "./users.db",
+		MigrationsPath: "./migrations",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer provider.Close()
 	// Initialize handler with service
-	handler := api.NewHandler(service, userProvider)
+	handler := api.NewHandler(service, provider)
 
 	// Get router
 	router := handler.Router()
