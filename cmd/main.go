@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/fgb-andu/hustl-api/pkg/api"
-	"github.com/fgb-andu/hustl-api/pkg/domain"
 	"github.com/fgb-andu/hustl-api/pkg/repository/userprovider"
 	"github.com/fgb-andu/hustl-api/pkg/service/chat"
 	"log"
@@ -27,11 +26,7 @@ func main() {
 	// Initialize GPT service
 	service := chat.NewGPTService(apiKey)
 	userProvider := userprovider.NewUserProvider()
-	// Create some test users
-	user1, _ := userProvider.CreateUser(domain.AuthProviderGoogle, "test@example.com")
-	user2, _ := userProvider.CreateUser(domain.AuthProviderGuest, "device123")
 
-	log.Printf("Created test users: %s, %s", user1.ID, user2.ID)
 	// Initialize handler with service
 	handler := api.NewHandler(service, userProvider)
 
