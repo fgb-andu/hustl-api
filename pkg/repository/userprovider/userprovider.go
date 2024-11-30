@@ -202,7 +202,7 @@ func (p *UserProvider) CheckAndIncrementMessageCount(userID string) error {
 
 	err = tx.QueryRow(`
         SELECT messages_used, daily_message_limit, last_reset 
-        FROM users WHERE id = ?`, userID).Scan(
+        FROM users WHERE username = ?`, userID).Scan(
 		&messagesUsed, &dailyMessageLimit, &lastReset,
 	)
 
@@ -229,7 +229,7 @@ func (p *UserProvider) CheckAndIncrementMessageCount(userID string) error {
 	_, err = tx.Exec(`
         UPDATE users 
         SET messages_used = ?, last_reset = ?, last_active = ? 
-        WHERE id = ?`,
+        WHERE username = ?`,
 		messagesUsed+1, lastReset, time.Now(), userID,
 	)
 	if err != nil {
