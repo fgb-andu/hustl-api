@@ -53,7 +53,6 @@ func (h *Handler) Router() chi.Router {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-
 	// Routes
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth endpoint
@@ -105,7 +104,7 @@ func (h *Handler) HandleNextMessage(w http.ResponseWriter, r *http.Request) {
 	if err := h.userProv.CheckAndIncrementMessageCount(req.UserID); err != nil {
 		switch err {
 		case userprovider.ErrUserNotFound:
-			respondWithError(w, http.StatusNotFound, "User not found")
+			respondWithError(w, http.StatusInternalServerError, "User not found")
 		case userprovider.ErrDailyLimitReached:
 			respondWithError(w, http.StatusForbidden, "Daily message limit reached")
 		default:

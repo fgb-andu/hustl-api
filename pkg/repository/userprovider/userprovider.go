@@ -63,7 +63,7 @@ func (p *UserProvider) GetUserByUsername(username string) (*domain.User, error) 
 	log.Println("Getting User by Username from user provider.")
 
 	p.mu.RLock()
-	user, exists := p.users[username]
+	user, exists := p.usersByUsername[username]
 	p.mu.RUnlock()
 
 	if !exists {
@@ -80,7 +80,7 @@ func (p *UserProvider) CheckAndIncrementMessageCount(userID string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	user, exists := p.users[userID]
+	user, exists := p.usersByUsername[userID]
 	if !exists {
 		return ErrUserNotFound
 	}
