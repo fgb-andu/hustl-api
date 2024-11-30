@@ -48,9 +48,14 @@ func (p *UserProvider) CreateUser(authProvider domain.AuthProvider, username str
 func (p *UserProvider) GetUser(id string) (*domain.User, error) {
 	log.Println("Getting User from user provider.")
 
-	p.mu.RLock()
+	p.mu.Lock()
 	user, exists := p.users[id]
-	p.mu.RUnlock()
+	if time.Since(user.Entitlements.LastReset) > MESSAGES_RESET_TIME {
+		log.Println("Resetting!")
+		user.Entitlements.MessagesUsed = 0
+		user.Entitlements.LastReset = time.Now()
+	}
+	p.mu.Unlock()
 
 	if !exists {
 		return nil, ErrUserNotFound
@@ -62,9 +67,14 @@ func (p *UserProvider) GetUser(id string) (*domain.User, error) {
 func (p *UserProvider) GetUserByUsername(username string) (*domain.User, error) {
 	log.Println("Getting User by Username from user provider.")
 
-	p.mu.RLock()
+	p.mu.Lock()
 	user, exists := p.usersByUsername[username]
-	p.mu.RUnlock()
+	if time.Since(user.Entitlements.LastReset) > MESSAGES_RESET_TIME {
+		log.Println("Resetting!")
+		user.Entitlements.MessagesUsed = 0
+		user.Entitlements.LastReset = time.Now()
+	}
+	p.mu.Unlock()
 
 	if !exists {
 		return nil, ErrUserNotFound
