@@ -46,7 +46,7 @@ func (s *GPTService) Summarize(messages []string) string {
 					Content: prompt,
 				},
 			},
-			MaxTokens: 150, // Adjust based on your needs
+			MaxTokens: 1000, // Adjust based on your needs
 		},
 	)
 
@@ -93,7 +93,7 @@ func (s *GPTService) GetNextMessage(messages []string) string {
 				Model:            s.model,
 				Messages:         chatMessages,
 				MaxTokens:        150,
-				Temperature:      0.7,
+				Temperature:      0.5,
 				PresencePenalty:  0.5,
 				FrequencyPenalty: 0.2,
 			},
