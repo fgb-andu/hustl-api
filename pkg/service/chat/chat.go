@@ -86,7 +86,9 @@ func (s *GPTService) GetNextMessage(messages []string) string {
 		})
 	}
 
-	log.Println(chatMessages)
+	for _, message := range chatMessages {
+		log.Println(message.Role, message.Content)
+	}
 	// Retry loop
 	for attempt = 0; attempt < maxRetries; attempt++ {
 		log.Println(fmt.Sprintf("Attempt: %d", attempt))
