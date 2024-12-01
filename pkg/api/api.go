@@ -142,7 +142,7 @@ type AuthRequest struct {
 	Provider *domain.AuthProvider `json:"provider,omitempty"` // Optional: google/apple
 	Username *string              `json:"username,omitempty"` // Required for google/apple
 	Email    *string              `json:"email,omitempty"`    // Required for google/apple
-	DeviceID string               `json:"device_id"`          // Required for all requests
+	DeviceID *string              `json:"device_id"`          // Required for all requests
 }
 
 func (h *Handler) HandleGuestAuth(w http.ResponseWriter, r *http.Request) {
@@ -153,13 +153,13 @@ func (h *Handler) HandleGuestAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate request
-	if req.DeviceID == "" {
+	if req.DeviceID == nil || *req.DeviceID == "" {
 		respondWithError(w, http.StatusBadRequest, "device_id is required")
 		return
 	}
 
 	// Handle anonymous session
-	user, err := h.userProv.GetUserByUsername(req.DeviceID)
+	user, err := h.userProv.GetUserByUsername(*req.DeviceID)
 	if err == nil {
 		// Anonymous user exists, return it
 		respondWithJSON(w, http.StatusOK, AuthResponse{User: user})
@@ -167,7 +167,7 @@ func (h *Handler) HandleGuestAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create new anonymous user
-	user, err = h.userProv.CreateUser(domain.AuthProviderGuest, req.DeviceID, "")
+	user, err = h.userProv.CreateUser(domain.AuthProviderGuest, *req.DeviceID, "")
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to create user")
 		return
@@ -187,7 +187,6 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
 	// Parse the token
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Verify the signing method
@@ -238,51 +237,34 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate request
-	if req.DeviceID == "" {
+	if req.DeviceID == nil || *req.DeviceID == "" {
 		respondWithError(w, http.StatusBadRequest, "device_id is required")
 		return
 	}
 
 	// Handle authenticated session (Apple/Google)
-	if req.Provider != nil {
-		if req.Email == nil || *req.Email == "" {
-			respondWithError(w, http.StatusBadRequest, "email is required for authenticated sessions")
-			return
-		}
-
-		// Look up user by email
-		user, err := h.userProv.GetUserByUsername(*req.Email)
-		if err == nil {
-			// User exists, return it
-			respondWithJSON(w, http.StatusOK, AuthResponse{User: user})
-			return
-		}
-
-		// Create new authenticated user
-		user, err = h.userProv.CreateUser(*req.Provider, *req.Username, *req.Email)
-		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Failed to create user")
-			return
-		}
-		respondWithJSON(w, http.StatusCreated, AuthResponse{User: user})
+	if req.Email == nil || *req.Email == "" {
+		respondWithError(w, http.StatusBadRequest, "email is required for authenticated sessions")
 		return
 	}
 
-	// Handle anonymous session
-	user, err := h.userProv.GetUserByUsername(req.DeviceID)
+	// Look up user by email
+	user, err := h.userProv.GetUserByUsername(*req.Username)
 	if err == nil {
-		// Anonymous user exists, return it
+		// User exists, return it
 		respondWithJSON(w, http.StatusOK, AuthResponse{User: user})
 		return
 	}
 
-	// Create new anonymous user
-	user, err = h.userProv.CreateUser(domain.AuthProviderGuest, *req.Username, *req.Email)
+	// Create new authenticated user
+	user, err = h.userProv.CreateUser(*req.Provider, *req.Username, *req.Email)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to create user")
 		return
 	}
+
 	respondWithJSON(w, http.StatusCreated, AuthResponse{User: user})
+	return
 }
 
 var (
