@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/sashabaranov/go-openai"
+	"log"
 	"strings"
 )
 
@@ -85,8 +86,10 @@ func (s *GPTService) GetNextMessage(messages []string) string {
 		})
 	}
 
+	log.Println(chatMessages)
 	// Retry loop
 	for attempt = 0; attempt < maxRetries; attempt++ {
+		log.Println(fmt.Sprintf("Attempt: %d", attempt))
 		resp, err = s.client.CreateChatCompletion(
 			context.Background(),
 			openai.ChatCompletionRequest{
@@ -101,6 +104,7 @@ func (s *GPTService) GetNextMessage(messages []string) string {
 
 		// Check for errors
 		if err != nil {
+			log.Println(err.Error())
 			continue // Retry if an error occurred
 		}
 
@@ -111,7 +115,7 @@ func (s *GPTService) GetNextMessage(messages []string) string {
 	}
 
 	// If all retries fail, return an error message
-	return "Unable to generate a valid response after several attempts."
+	return "I'm sorry but I can't help you with that - you will have to find your own path."
 }
 
 // Optional: Configuration struct if you want to make the service more configurable
