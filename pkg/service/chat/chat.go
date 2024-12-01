@@ -92,7 +92,7 @@ func (s *GPTService) GetNextMessage(messages []string) string {
 			openai.ChatCompletionRequest{
 				Model:            s.model,
 				Messages:         chatMessages,
-				MaxTokens:        150,
+				MaxTokens:        1000,
 				Temperature:      0.5,
 				PresencePenalty:  0.5,
 				FrequencyPenalty: 0.2,
