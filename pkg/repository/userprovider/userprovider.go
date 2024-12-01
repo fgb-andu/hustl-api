@@ -72,12 +72,14 @@ func (p *UserProvider) CreateUser(authProvider domain.AuthProvider, username str
 	}
 
 	_, err = p.db.Exec(`
-        INSERT INTO users (
-            id, auth_provider, username, email, 
-            daily_message_limit, messages_used, last_reset, last_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    INSERT INTO users (
+        id, auth_provider, username, email, 
+        daily_message_limit, messages_used, last_reset, last_active,
+        subscription_type, subscription_platform
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id.String(), authProvider, username, email,
 		FREE_USER_MESSAGE_LIMIT, 0, time.Now(), time.Now(),
+		domain.SubscriptionTypeFree, domain.SubscriptionPlatformNone,
 	)
 	if err != nil {
 		return nil, err
@@ -101,16 +103,20 @@ func (p *UserProvider) GetUser(id string) (*domain.User, error) {
 	log.Println("Getting user by ID: " + id)
 
 	var user domain.User
-	var lastReset time.Time
-	var lastActive time.Time
+	var lastReset, lastActive time.Time
+	var originalTransactionID sql.NullString
+	var subscriptionExpiresAt sql.NullTime
 
 	err := p.db.QueryRow(`
         SELECT id, auth_provider, username, email, 
-               daily_message_limit, messages_used, last_reset, last_active 
+               daily_message_limit, messages_used, last_reset, last_active, 
+               subscription_type, subscription_platform, original_transaction_id, subscription_expires_at
         FROM users WHERE id = ?`, id).Scan(
 		&user.ID, &user.AuthProvider, &user.Username, &user.Email,
 		&user.Entitlements.DailyMessageLimit, &user.Entitlements.MessagesUsed,
 		&lastReset, &lastActive,
+		&user.Entitlements.Subscription.Type, &user.Entitlements.Subscription.Platform,
+		&originalTransactionID, &subscriptionExpiresAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -122,6 +128,14 @@ func (p *UserProvider) GetUser(id string) (*domain.User, error) {
 
 	user.Entitlements.LastReset = lastReset
 	user.LastActive = lastActive
+
+	// Handle nullable fields
+	if originalTransactionID.Valid {
+		user.Entitlements.Subscription.OriginalTransactionID = originalTransactionID.String
+	}
+	if subscriptionExpiresAt.Valid {
+		user.Entitlements.Subscription.ExpiresAt = &subscriptionExpiresAt.Time
+	}
 
 	// Check if we need to reset the message count
 	if time.Since(lastReset) > MESSAGES_RESET_TIME {
@@ -146,16 +160,20 @@ func (p *UserProvider) GetUserByUsername(username string) (*domain.User, error) 
 	log.Println("Getting User by username: " + username)
 
 	var user domain.User
-	var lastReset time.Time
-	var lastActive time.Time
+	var lastReset, lastActive time.Time
+	var originalTransactionID sql.NullString
+	var subscriptionExpiresAt sql.NullTime
 
 	err := p.db.QueryRow(`
         SELECT id, auth_provider, username, email, 
-               daily_message_limit, messages_used, last_reset, last_active 
+               daily_message_limit, messages_used, last_reset, last_active, 
+               subscription_type, subscription_platform, original_transaction_id, subscription_expires_at
         FROM users WHERE username = ?`, username).Scan(
 		&user.ID, &user.AuthProvider, &user.Username, &user.Email,
 		&user.Entitlements.DailyMessageLimit, &user.Entitlements.MessagesUsed,
 		&lastReset, &lastActive,
+		&user.Entitlements.Subscription.Type, &user.Entitlements.Subscription.Platform,
+		&originalTransactionID, &subscriptionExpiresAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -167,6 +185,14 @@ func (p *UserProvider) GetUserByUsername(username string) (*domain.User, error) 
 
 	user.Entitlements.LastReset = lastReset
 	user.LastActive = lastActive
+
+	// Handle nullable fields
+	if originalTransactionID.Valid {
+		user.Entitlements.Subscription.OriginalTransactionID = originalTransactionID.String
+	}
+	if subscriptionExpiresAt.Valid {
+		user.Entitlements.Subscription.ExpiresAt = &subscriptionExpiresAt.Time
+	}
 
 	// Check if we need to reset the message count
 	if time.Since(lastReset) > MESSAGES_RESET_TIME {
@@ -247,3 +273,33 @@ var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrDailyLimitReached = errors.New("daily message limit reached")
 )
+
+func (p *UserProvider) SetEntitlements(username string, entitlements domain.Entitlements) error {
+	log.Println("Updating entitlements for user:", username)
+
+	query := `
+        UPDATE users 
+        SET daily_message_limit = COALESCE(?, daily_message_limit),
+            messages_used = COALESCE(?, messages_used),
+            subscription_type = COALESCE(?, subscription_type),
+            subscription_platform = COALESCE(?, subscription_platform),
+            original_transaction_id = COALESCE(?, original_transaction_id),
+            subscription_expires_at = COALESCE(?, subscription_expires_at)
+        WHERE username = ?`
+
+	_, err := p.db.Exec(query,
+		entitlements.DailyMessageLimit,
+		entitlements.MessagesUsed,
+		entitlements.Subscription.Type,
+		entitlements.Subscription.Platform,
+		entitlements.Subscription.OriginalTransactionID,
+		entitlements.Subscription.ExpiresAt,
+		username,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update entitlements: %w", err)
+	}
+
+	return nil
+}

@@ -8,12 +8,11 @@ import (
 	"github.com/fgb-andu/hustl-api/pkg/domain"
 	"github.com/fgb-andu/hustl-api/pkg/repository/userprovider"
 	"github.com/fgb-andu/hustl-api/pkg/service/chat"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"net/http"
 	"strings"
 	"sync"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 // Updated request structure to include user ID
@@ -62,6 +61,10 @@ func (h *Handler) Router() chi.Router {
 		// Existing endpoints
 		r.Post("/summarize", h.HandleSummarize)
 		r.Post("/next-message", h.HandleNextMessage)
+		r.Post("/set-entitlements", h.HandleSetEntitlements)
+		r.Post("/update-config", h.UpdateConfig)
+		r.Post("/update-prompt", h.UpdatePrompt)
+
 	})
 
 	return r
@@ -280,4 +283,101 @@ func GetGooglePublicKey(token *jwt.Token, forceRefresh bool) (interface{}, error
 // Fetch Apple's public key
 func GetApplePublicKey(token *jwt.Token, forceRefresh bool) (interface{}, error) {
 	return jwtdecode.FetchPublicKeyFromURL("https://appleid.apple.com/auth/keys", token, forceRefresh)
+}
+
+type SetEntitlementsRequest struct {
+	Username     string              `json:"username"`
+	Subscription domain.Subscription `json:"subscription,omitempty"`
+}
+
+func (h *Handler) HandleSetEntitlements(w http.ResponseWriter, r *http.Request) {
+	var req SetEntitlementsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate User ID
+	if req.Username == "" {
+		respondWithError(w, http.StatusBadRequest, "user_id is required")
+		return
+	}
+
+	// Fetch existing user
+	user, err := h.userProv.GetUserByUsername(req.Username)
+	if err != nil {
+		switch err {
+		case userprovider.ErrUserNotFound:
+			respondWithError(w, http.StatusNotFound, "User not found")
+			return
+		default:
+			respondWithError(w, http.StatusInternalServerError, "Failed to fetch user")
+			return
+		}
+	}
+
+	// Update entitlements
+	newEntitlements := domain.Entitlements{
+		DailyMessageLimit: user.Entitlements.DailyMessageLimit,
+		MessagesUsed:      user.Entitlements.MessagesUsed,
+		LastReset:         user.Entitlements.LastReset,
+		Subscription:      user.Entitlements.Subscription,
+	}
+	newEntitlements.Subscription = req.Subscription
+
+	if user.Entitlements.Subscription.Type == domain.SubscriptionTypePremium {
+		newEntitlements.DailyMessageLimit = 10000
+		newEntitlements.MessagesUsed = 0
+	} else if user.Entitlements.Subscription.Type == domain.SubscriptionTypeFree {
+		newEntitlements.DailyMessageLimit = userprovider.FREE_USER_MESSAGE_LIMIT
+	}
+
+	if err := h.userProv.SetEntitlements(req.Username, newEntitlements); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to update entitlements")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Entitlements updated successfully"})
+}
+
+type UpdateConfigRequest struct {
+	Model            string  `json:"model"`
+	MaxTokens        int     `json:"max_tokens"`
+	Temperature      float32 `json:"temperature"`
+	PresencePenalty  float32 `json:"presence_penalty"`
+	FrequencyPenalty float32 `json:"frequency_penalty"`
+}
+
+func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
+	var req UpdateConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	newConfig := chat.Config{
+		Model:            req.Model,
+		MaxTokens:        req.MaxTokens,
+		Temperature:      req.Temperature,
+		PresencePenalty:  req.PresencePenalty,
+		FrequencyPenalty: req.FrequencyPenalty,
+	}
+
+	h.service.(*chat.GPTService).UpdateConfig(newConfig)
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Config updated successfully"})
+}
+
+type UpdatePromptRequest struct {
+	Prompt string `json:"prompt"`
+}
+
+func (h *Handler) UpdatePrompt(w http.ResponseWriter, r *http.Request) {
+	var req UpdatePromptRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	h.service.(*chat.GPTService).UpdateInitialPrompt(req.Prompt)
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Prompt updated successfully"})
 }
